@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 import { ConsentProvider } from './contexts/ConsentContext';
 import { CookieBanner } from './components/legal/CookieBanner';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 // Lazy load components
@@ -58,39 +59,41 @@ function App() {
     <BrowserRouter>
       <ConsentProvider>
         <ToastProvider>
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-            {/* Public SPA - crawlable public routes with preserved in-app navigation */}
-            <Route path="/" element={<PublicSPA />} />
-            <Route path="/menus" element={<PublicSPA />} />
-            <Route path="/menu" element={<Navigate to="/menus" replace />} />
-            <Route path="/commande" element={<PublicSPA />} />
-            <Route path="/order" element={<Navigate to="/commande" replace />} />
-            <Route path="/contact" element={<PublicSPA />} />
-            <Route path="/mentions-legales" element={<PublicSPA />} />
-            <Route path="/cgv" element={<PublicSPA />} />
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public SPA - crawlable public routes with preserved in-app navigation */}
+                <Route path="/" element={<PublicSPA />} />
+                <Route path="/menus" element={<PublicSPA />} />
+                <Route path="/menu" element={<Navigate to="/menus" replace />} />
+                <Route path="/commande" element={<PublicSPA />} />
+                <Route path="/order" element={<Navigate to="/commande" replace />} />
+                <Route path="/contact" element={<PublicSPA />} />
+                <Route path="/mentions-legales" element={<PublicSPA />} />
+                <Route path="/cgv" element={<PublicSPA />} />
 
-            {/* Portal & Auth */}
-            <Route path="/portal" element={<PortalRoute />} />
-            <Route path="/reset-password" element={<ResetPasswordRoute />} />
-            <Route path="/unauthorized" element={<UnauthorizedRoute />} />
+                {/* Portal & Auth */}
+                <Route path="/portal" element={<PortalRoute />} />
+                <Route path="/reset-password" element={<ResetPasswordRoute />} />
+                <Route path="/unauthorized" element={<UnauthorizedRoute />} />
 
-            {/* Unified Dashboard - SPA with role switching */}
-            <Route path="/dashboard" element={<DashboardRoute />} />
+                {/* Unified Dashboard - SPA with role switching */}
+                <Route path="/dashboard" element={<DashboardRoute />} />
 
-            {/* Legacy routes - redirect to dashboard */}
-            <Route path="/dev" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/employee" element={<Navigate to="/dashboard" replace />} />
+                {/* Legacy routes - redirect to dashboard */}
+                <Route path="/dev" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/employee" element={<Navigate to="/dashboard" replace />} />
 
-            {/* Scenario pages (dev tools) */}
-            {/* <Route path="/scenario/form" element={<FormTestPage />} /> */}
-            <Route path="/scenario/foodcard" element={<FoodCardScenario />} />
-            <Route path="/scenario/kanban" element={<KanbanScenario />} />
-            <Route path="/scenario/minitalk" element={<MinitalkScenario />} />
-            <Route path="/scenario/auth" element={<AuthScenario />} />
-            </Routes>
-          </Suspense>
+                {/* Scenario pages (dev tools) */}
+                {/* <Route path="/scenario/form" element={<FormTestPage />} /> */}
+                <Route path="/scenario/foodcard" element={<FoodCardScenario />} />
+                <Route path="/scenario/kanban" element={<KanbanScenario />} />
+                <Route path="/scenario/minitalk" element={<MinitalkScenario />} />
+                <Route path="/scenario/auth" element={<AuthScenario />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
           <CookieBanner />
         </ToastProvider>
       </ConsentProvider>

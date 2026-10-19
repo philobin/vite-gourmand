@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 # Répertoire racine du projet
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BACKEND_DIR="$PROJECT_ROOT/backend"
+BACKEND_DIR="$PROJECT_ROOT/Back"
 REPORT_DIR="$PROJECT_ROOT/docs/logs"
 REPORT_FILE="$REPORT_DIR/test-report-$(date +%Y%m%d-%H%M%S).md"
 
@@ -115,11 +115,11 @@ check_prerequisites() {
         prereqs_ok=false
     fi
     
-    # Vérifier Postman CLI
-    if command -v postman &> /dev/null; then
-        print_success "Postman CLI installé"
+    # Vérifier Newman (Postman test runner)
+    if npx newman --version &> /dev/null; then
+        print_success "Newman (Postman runner) disponible"
     else
-        print_warning "Postman CLI non installé (tests Postman ignorés)"
+        print_warning "Newman non disponible (tests Postman ignorés)"
     fi
     
     # Vérifier si le backend est en cours d'exécution
@@ -147,10 +147,10 @@ check_prerequisites() {
 run_postman_tests() {
     print_header "🧪 TESTS POSTMAN - API & BUSINESS RULES"
     
-    if ! command -v postman &> /dev/null; then
-        print_warning "Postman CLI non disponible - tests ignorés"
+    if ! npx newman --version &> /dev/null; then
+        print_warning "Newman non disponible - tests ignorés"
         CATEGORY_RESULTS["postman"]="SKIPPED"
-        CATEGORY_DETAILS["postman"]="Postman CLI non installé"
+        CATEGORY_DETAILS["postman"]="Newman non installé"
         return
     fi
     
@@ -165,7 +165,10 @@ run_postman_tests() {
         print_subheader "Collection Complète ECF"
         
         set +e  # Ne pas quitter sur erreur
-        OUTPUT=$(postman collection run postman/vite-gourmand-complete.json --color off 2>&1)
+        OUTPUT=$(npx newman run postman/vite-gourmand-complete.json \
+            -e postman/env.local.json \
+            --reporters cli \
+            --no-color 2>&1)
         EXIT_CODE=$?
         set -e
         

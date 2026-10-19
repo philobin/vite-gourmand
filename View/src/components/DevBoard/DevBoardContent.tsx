@@ -109,7 +109,6 @@ export function DevBoardContent({
   const { tests } = useMockData(activeCategory);
   const { autoTests, suites, metrics, isRunning, runAll, runSuite, runType, rawOutput, error } =
     testRunner;
-  const { logs, connected, clear } = useRealLogs();
 
   const labels = getLabels(roleView);
 
@@ -190,9 +189,6 @@ export function DevBoardContent({
             category: activeCategory,
             tests,
             suites,
-            logs,
-            connected,
-            clear,
             metrics,
             isRunning,
             runSuite,
@@ -211,9 +207,6 @@ interface RenderContentContext {
   category: TestCategory;
   tests: ReturnType<typeof useMockData>['tests'];
   suites: ReturnType<typeof useTestRunner>['suites'];
-  logs: ReturnType<typeof useRealLogs>['logs'];
-  connected: boolean;
-  clear: () => void;
   metrics: ReturnType<typeof useTestRunner>['metrics'];
   isRunning: boolean;
   runSuite: ReturnType<typeof useTestRunner>['runSuite'];
@@ -237,13 +230,16 @@ function renderContent(context: RenderContentContext) {
   }
 }
 
+/** Own component so the log stream opens only while the logs tab is shown. */
+function DevLogsPanel() {
+  const { logs, connected, clear } = useRealLogs();
+  return <LogViewer logs={logs} connected={connected} onClear={clear} />;
+}
+
 function renderDevContent({
   category,
   tests,
   suites,
-  logs,
-  connected,
-  clear,
   metrics,
   isRunning,
   runSuite,
@@ -257,7 +253,7 @@ function renderDevContent({
     case 'database':
       return <DatabaseViewer />;
     case 'logs':
-      return <LogViewer logs={logs} connected={connected} onClear={clear} />;
+      return <DevLogsPanel />;
     case 'activity':
       return <Activity />;
     default:

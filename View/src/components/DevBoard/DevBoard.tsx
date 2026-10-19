@@ -13,6 +13,7 @@ import { SettingsModal } from '../features/qa/settings';
 import { ShellFab, ShellModal } from '../cloud-terminal';
 import { getCategoriesForRole, getDefaultCategory } from './constants';
 import { useMockData } from './useMockData';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { TestCountProvider } from './TestCountContext';
 import { RoleViewProvider, useRoleView } from './RoleViewContext';
 import { getDefaultViewForRole } from '../layout/Sidebar';
@@ -28,7 +29,59 @@ export function DevBoard() {
 
   return (
     <RoleViewProvider defaultView={defaultView}>
-      <DevBoardInner />
+      <ErrorBoundary
+        fallback={(error, reset) => (
+          <div
+            style={{
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              background: '#0F0F1A',
+              color: '#E5E7EB',
+            }}
+          >
+            <h2 style={{ fontSize: '1.25rem', color: '#F87171' }}>Dashboard — erreur inattendue</h2>
+            <p style={{ fontSize: '0.875rem', opacity: 0.7, maxWidth: 400, textAlign: 'center' }}>
+              {error.message}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={reset}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: '#6366F1',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                Réessayer
+              </button>
+              <button
+                onClick={() => {
+                  globalThis.location.href = '/';
+                }}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: 'transparent',
+                  color: '#9CA3AF',
+                  border: '1px solid #374151',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                Retour à l'accueil
+              </button>
+            </div>
+          </div>
+        )}
+      >
+        <DevBoardInner />
+      </ErrorBoundary>
     </RoleViewProvider>
   );
 }

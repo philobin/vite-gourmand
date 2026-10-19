@@ -1,0 +1,76 @@
+# ============================================================
+# Vite & Gourmand — Application layer (extends mini-baas-infra)
+# ============================================================
+# This file adds the app-specific services that the generic BaaS
+# does NOT include: domain-bootstrap (migrations/seeds) and the
+# SPA frontend served by nginx.
+#
+# Usage (from project root):
+#   docker compose -f mini-baas-infra/docker-compose.yml \
+#                  -f docker-compose.baas.yml up -d
+#
+# Alternative stack (PostgREST + realtime-agnostic). The default stack is docker-compose.yml (NestJS); this file is NOT auto-loaded.
+# ============================================================
+
+services:
+  # ─── Domain Bootstrap (app-specific migrations + seeds) ─────────
+  # NOTE: All relative paths are resolved from the first -f file's
+  # directory (mini-baas-infra/), so we use ../ to reach project root.
+  domain-bootstrap:
+    image: postgres:16-alpine
+    container_name: mini-baas-domain-bootstrap
+    env_file: [.env]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    command: ["sh", "/domain/domain-bootstrap.sh"]
+    volumes:
+      - ../database/domain-bootstrap.sh:/domain/domain-bootstrap.sh:ro
+      - ../database/migrations:/domain/migrations:ro
+      - ../database/seeds:/domain/seeds:ro
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      gotrue:
+        condition: service_healthy
+    networks:
+      - mini-baas
+    restart: "no"
+
+  # PostgREST must wait for domain tables to exist
+  postgrest:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      domain-bootstrap:
+        condition: service_completed_successfully
+
+  # ─── SPA Frontend (nginx serving View/dist) ─────────────────────
+  frontend:
+    build:
+      context: ../nginx
+      dockerfile: Dockerfile
+    container_name: mini-baas-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    volumes:
+      - ../View/dist:/usr/share/nginx/html:ro
+    depends_on:
+      kong:
+        condition: service_healthy
+    networks:
+      - mini-baas
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    mem_limit: 128m
+    cpus: 0.25
+
+networks:
+  mini-baas:
+    external: false

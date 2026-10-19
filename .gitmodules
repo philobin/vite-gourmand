@@ -1,0 +1,3 @@
+[submodule "mini-baas-infra"]
+	path = mini-baas-infra
+	url = https://github.com/Univers42/grobase.git

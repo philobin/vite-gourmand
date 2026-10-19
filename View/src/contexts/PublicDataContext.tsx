@@ -7,7 +7,16 @@
  * component firing its own API calls on every page navigation.
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import {
   fetchSiteInfo,
   fetchWorkingHours,
@@ -18,6 +27,7 @@ import {
   type PublicReview,
   type ReviewStats,
 } from '../services/public';
+import { REALTIME_URL, getRealtimeClient } from '../lib/realtime';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -60,6 +70,63 @@ function logPublicDataWarning(message: string, err: unknown) {
   if (import.meta.env.DEV) {
     console.warn(message, err);
   }
+}
+
+const REFETCH_DEBOUNCE_MS = 300;
+
+/**
+ * Live public data: re-fetch a slice when the realtime engine reports a change
+ * on the table behind it. Opt-in via VITE_REALTIME_URL; without it nothing
+ * connects. Caveat: events are only a trigger (full re-fetch, no patching), so
+ * a burst costs one request per slice after the debounce, not one per event.
+ */
+function usePublicRealtimeRefetch(setData: Dispatch<SetStateAction<PublicData>>) {
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    if (!REALTIME_URL) return;
+    const client = getRealtimeClient();
+    client.connect();
+    const pending = timers.current;
+
+    const refetchOn = (table: string, key: string, run: () => Promise<Partial<PublicData>>) =>
+      client.subscribe(table, 'postgresql', () => {
+        globalThis.clearTimeout(pending[key]);
+        pending[key] = globalThis.setTimeout(() => {
+          run()
+            .then((slice) => setData((prev) => ({ ...prev, ...slice })))
+            .catch((err) =>
+              logPublicDataWarning(`[PublicDataProvider] Realtime refetch ${key} failed:`, err),
+            );
+        }, REFETCH_DEBOUNCE_MS);
+      });
+
+    const refetchHours = async () => {
+      const hours = await fetchWorkingHours();
+      hours.sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+      return { workingHours: hours };
+    };
+    const refetchReviews = async () => {
+      const [reviews, reviewStats] = await Promise.all([
+        fetchApprovedReviews(1, 20),
+        fetchReviewStats(),
+      ]);
+      return { reviews, reviewStats };
+    };
+    const refetchSiteInfo = async () => ({ siteInfo: await fetchSiteInfo() });
+
+    const subs = [
+      refetchOn('working_hours', 'hours', refetchHours),
+      refetchOn('reviews', 'reviews', refetchReviews),
+      refetchOn('companies', 'siteInfo', refetchSiteInfo),
+      refetchOn('company_owners', 'siteInfo', refetchSiteInfo),
+    ];
+
+    return () => {
+      subs.forEach((sub) => sub.unsubscribe());
+      Object.values(pending).forEach((timer) => globalThis.clearTimeout(timer));
+    };
+  }, [setData]);
 }
 
 export function PublicDataProvider({ children }: Readonly<{ children: ReactNode }>) {
@@ -119,6 +186,8 @@ export function PublicDataProvider({ children }: Readonly<{ children: ReactNode 
       globalThis.clearTimeout(deferredTimer);
     };
   }, []); // fetch once on mount
+
+  usePublicRealtimeRefetch(setData);
 
   return <PublicDataCtx.Provider value={data}>{children}</PublicDataCtx.Provider>;
 }
